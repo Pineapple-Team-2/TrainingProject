@@ -4,6 +4,13 @@ using UnityEngine;
 
 public class PlayerMovement : MonoBehaviour
 {
+    public GameManager gameManager;
+
+    //Flag which determines whether this is real player or CPU opponent
+    public bool isCPU = false;
+
+    Rigidbody playerRB;
+
     //Hold the players start and end position when getting pushed back
     Vector3 startPos, endPos;
 
@@ -13,59 +20,92 @@ public class PlayerMovement : MonoBehaviour
     //Speed the player is pushed back at
     public float pushSpeed = 2f;
 
+    //Flag to check if the player is moving
+    private bool isMoving = false;
+
     //Timer to move along lerp
     private float lerpTimer = 0.0f;
+
+    public Vector3 launchForce = new Vector3(-5f, 3f, 0.0f);
 
     // Start is called before the first frame update
     void Start()
     {
-        
+        //Set the rigidbody
+        playerRB = GetComponent<Rigidbody>();
     }
 
     // Update is called once per frame
     void Update()
     {
-        //Mark push distance on key press (will change to do automatically after initial testing)
-        if (Input.GetKeyDown("s"))
+        //Lerp if moving flag is true
+        if (isMoving)
         {
-            MarkPushDistance();
-        }
-
-        //Lerp object on key held (will change to do automatically using a bool flag after initial testing)
-        if (Input.GetKey("s"))
-        {
-            pushPlayer(pushDistance);
-        }
-
-        //Reset lerp timer (will change to do automatically after initial testing)
-        if (Input.GetKeyUp("s"))
-        {
-            lerpTimer = 0.0f;
+            PushPlayer(pushDistance);
         }
     }
 
     //This should only happen once
-    void MarkPushDistance()
+    public void InitPushPlayer()
     {
-        //Mark the players current position and the position they are to be pushed to
+        //Mark the players current position
         startPos = new Vector3(transform.position.x, transform.position.y, transform.position.z);
-        endPos = new Vector3(transform.position.x - pushDistance, transform.position.y, transform.position.z);
+
+        //If this is the real player
+        if (!isCPU)
+        {
+            //End position is to the left of start position
+            endPos = new Vector3(transform.position.x - pushDistance, transform.position.y, transform.position.z);
+        }
+        else
+        {
+            //End position is to the right of start position
+            endPos = new Vector3(transform.position.x + pushDistance, transform.position.y, transform.position.z);
+        }
+   
+        //Set moving flag to true and disable input
+        isMoving = true;
+        if (isCPU)
+        {
+            gameManager.allowInput = false;
+        }
     }
 
     //This should update every frame whilst lerping
-    void pushPlayer (float pushDistance)
+    void PushPlayer (float pushDistance)
     {
-        //Test output for the players start and end position
-        Debug.Log("Player 1s start position is: " + startPos);
-        Debug.Log("Player 1s end position is: " + endPos);
-
         //Pushes the player back along a smooth lerp at push speed
         if (lerpTimer < 1f)
         {
+            //Increment lerp timer and move player along based on value
             lerpTimer += Time.deltaTime * pushSpeed;
             transform.position = Vector3.Lerp(startPos, endPos, lerpTimer);
         }
 
-        Debug.Log("Lerp Timer Value is: " + lerpTimer);
+        //Once player reaches end position
+        if (transform.position == endPos)
+        {
+            //Reset moving flag and lerp timer, allow input again
+            isMoving = false;
+            lerpTimer = 0.0f;
+            if (isCPU)
+            {
+                gameManager.allowInput = true;
+            }
+        }
+    }
+
+    //Launches the player off the beam, called on opponents final move
+    public void LaunchPlayer ()
+    {
+        //Invert x direction if this is the CPU opponent
+        if (!isCPU)
+        {
+            playerRB.AddForce(launchForce, ForceMode.Impulse);
+        }
+        else
+        {
+            playerRB.AddForce(launchForce.x * -1f, launchForce.y, launchForce.z, ForceMode.Impulse);
+        }
     }
 }
